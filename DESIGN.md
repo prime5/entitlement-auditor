@@ -509,10 +509,17 @@ the two additions slot in where they depend on what came before.*
 
 ## 7. Open questions
 
-1. **Scope:** which GCP project ID(s)? Is the project standalone or under an
+**Answered 10/18:** Q1: no project exists yet; it will be standalone (no org)
+with no Terraform. Decision: create a new **dogfooded** project whose real job
+is hosting the auditor itself (scan job, audit-log anchor, signing key), and
+declare its IAM in Terraform from P2. Early drift comes from Google's automatic
+grants, not from planted findings. Q2: yes, `auditor-reader` via
+impersonation. Steps are in `docs/BOOTSTRAP.md`.
+
+1. ~~**Scope:** which GCP project ID(s)?~~ (answered above) Is the project standalone or under an
    organization (changes inheritance and org-policy coverage)? I'm assuming no
    Terraform exists for it yet — correct?
-2. **Credentials:** OK to create a dedicated `auditor-reader` SA
+2. ~~**Credentials:**~~ (answered above) OK to create a dedicated `auditor-reader` SA
    (`roles/iam.securityReviewer` + Activity Analyzer viewer) that you
    impersonate via `gcloud auth application-default login
    --impersonate-service-account`? I'll write the exact commands; you run them.

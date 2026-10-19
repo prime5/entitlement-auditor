@@ -1,0 +1,12 @@
+[project]
+name = "entitlement-auditor"
+version = "0.1.0"
+description = "Declared-vs-actual access drift for accounts I own, with human-approved fixes"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pre-commit>=3"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

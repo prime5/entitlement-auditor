@@ -1,0 +1,16 @@
+# Install once:  pip install pre-commit && pre-commit install
+# Runs on every commit; blocks the commit if a hook fails.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: fixtures-redacted
+        name: fixtures contain no real identifiers
+        entry: python -m auditor.redact check fixtures
+        language: system
+        pass_filenames: false
+        files: ^fixtures/

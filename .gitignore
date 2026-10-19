@@ -1,0 +1,26 @@
+# --- Python ---
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# --- Secrets and credentials: never committed ---
+.env
+.env.*
+*-key.json
+*_key.json
+credentials*.json
+application_default_credentials.json
+*.pem
+
+# --- Unredacted API captures. Only fixtures/ (redacted) is committed. ---
+raw/
+
+# --- Terraform (P2): state can contain secrets; lock file IS committed ---
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+plan.out
+plan.json
+crash.log
