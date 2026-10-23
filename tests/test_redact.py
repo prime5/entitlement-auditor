@@ -124,7 +124,8 @@ def test_cli_redacts_a_directory_end_to_end(tmp_path, monkeypatch):
     assert (fixtures / "gcp" / "project_iam_policy.json").exists()
 
 
-def test_committed_fixtures_are_clean():
+@pytest.mark.parametrize("rel", ["fixtures", "tests/data"])
+def test_committed_data_is_clean(rel):
     """Same check as the pre-commit hook, so CI enforces it even if the hook is skipped."""
-    root = Path(__file__).resolve().parent.parent / "fixtures"
+    root = Path(__file__).resolve().parent.parent / rel
     assert [str(l) for l in check_dir(root)] == []

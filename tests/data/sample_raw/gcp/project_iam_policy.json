@@ -1,0 +1,57 @@
+{
+  "observed_at": "2026-10-22T00:00:00+00:00",
+  "policy": {
+    "bindings": [
+      {
+        "members": [
+          "user:user-1a2b3c@example.com"
+        ],
+        "role": "roles/owner"
+      },
+      {
+        "members": [
+          "serviceAccount:auditor-reader@proj-a1b2c3.iam.gserviceaccount.com"
+        ],
+        "role": "roles/iam.securityReviewer"
+      },
+      {
+        "members": [
+          "serviceAccount:auditor-reader@proj-a1b2c3.iam.gserviceaccount.com"
+        ],
+        "role": "roles/policyanalyzer.activityAnalysisViewer"
+      },
+      {
+        "members": [
+          "serviceAccount:auditor-reader@proj-a1b2c3.iam.gserviceaccount.com"
+        ],
+        "role": "roles/serviceusage.serviceUsageConsumer"
+      },
+      {
+        "members": [
+          "serviceAccount:000123456789-compute@developer.gserviceaccount.com",
+          "serviceAccount:000123456789@cloudservices.gserviceaccount.com"
+        ],
+        "role": "roles/editor"
+      },
+      {
+        "members": [
+          "serviceAccount:service-000123456789@gcp-sa-pubsub.iam.gserviceaccount.com"
+        ],
+        "role": "roles/pubsub.serviceAgent"
+      },
+      {
+        "condition": {
+          "expression": "request.time < timestamp(\"2027-01-01T00:00:00Z\")",
+          "title": "until-2026-12-31"
+        },
+        "members": [
+          "user:user-1a2b3c@example.com"
+        ],
+        "role": "roles/storage.objectViewer"
+      }
+    ],
+    "etag": "BwSample1=",
+    "version": 3
+  },
+  "project": "proj-a1b2c3"
+}

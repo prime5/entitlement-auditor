@@ -10,7 +10,7 @@ repos:
     hooks:
       - id: fixtures-redacted
         name: fixtures contain no real identifiers
-        entry: python -m auditor.redact check fixtures
+        entry: bash -c "python -m auditor.redact check fixtures && python -m auditor.redact check tests/data"
         language: system
         pass_filenames: false
-        files: ^fixtures/
+        files: ^(fixtures|tests/data)/

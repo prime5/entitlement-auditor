@@ -8,6 +8,20 @@ for a short-lived token for `auditor-reader`, and no long-lived secret exists.
 The project is **dogfooded**: its real job is hosting the auditor itself (scan job,
 audit-log anchor bucket, signing key, added in later phases). So it audits its own host.
 
+## 0. Prerequisites
+
+```bash
+brew install --cask gcloud-cli      # older name: google-cloud-sdk
+# open a new terminal tab, then:
+gcloud --version
+gcloud auth login                   # the Google account that will own the project
+gcloud config list account
+```
+
+Keep §1–§6 in **one shell**: `$PROJECT_ID`, `$ME` and `$SA` are shell variables.
+If the tab closes, re-export `PROJECT_ID` with the *same* value (it's in `.env`
+after §6). Never re-run the `openssl` line, because it would generate a new ID.
+
 ## 1. Project (one-time)
 
 ```bash
@@ -15,10 +29,11 @@ export PROJECT_ID="entitlement-auditor-$(openssl rand -hex 2)"   # globally uniq
 export ME="$(gcloud config get-value account)"
 
 gcloud projects create "$PROJECT_ID" --name="entitlement-auditor"
+gcloud config set project "$PROJECT_ID"   # later commands can't hit another project by accident
 gcloud services enable \
   iam.googleapis.com iamcredentials.googleapis.com \
   cloudresourcemanager.googleapis.com serviceusage.googleapis.com \
-  policyanalyzer.googleapis.com \
+  policyanalyzer.googleapis.com policytroubleshooter.googleapis.com \
   --project "$PROJECT_ID"
 ```
 
@@ -70,17 +85,38 @@ needed even though you're Owner.)
 
 ## 4. Verify: read works, write is refused
 
+**Wait 3–7 minutes after §3.** New IAM bindings take time to apply. Until they
+do, both commands fail with `Permission 'iam.serviceAccounts.getAccessToken'`.
+That means "not applied yet", not "read-only works". Don't remove and re-add the
+binding while waiting: each change restarts the wait, and IAM displays your email
+with its account capitalization, which is the same principal (learned 10/22).
+
+Smallest check first:
+
+```bash
+gcloud auth print-access-token --impersonate-service-account="$SA" >/dev/null && echo "impersonation OK"
+```
+
+If it still fails after 10 minutes, ask Google why:
+
+```bash
+gcloud policy-intelligence troubleshoot-policy iam \
+  "//iam.googleapis.com/projects/$PROJECT_ID/serviceAccounts/$SA" \
+  --principal-email="$ME" --permission=iam.serviceAccounts.getAccessToken
+```
+
+Then the real test:
+
 ```bash
 # should print an etag
 gcloud projects get-iam-policy "$PROJECT_ID" \
   --impersonate-service-account="$SA" --format="value(etag)"
 
-# should FAIL with PERMISSION_DENIED (this is the point)
+# should FAIL, and the denied permission must be the WRITE, not getAccessToken
 gcloud iam service-accounts create should-not-exist \
-  --impersonate-service-account="$SA" --project "$PROJECT_ID"
+  --impersonate-service-account="$SA" --project "$PROJECT_ID" 2>&1 | grep -o "Permission '[^']*'"
+# expected: Permission 'iam.serviceAccounts.create'
 ```
-
-Paste the *outcome* (succeeded / PERMISSION_DENIED) back, not the output.
 
 ## 5. Application Default Credentials for the Python collector
 
@@ -111,6 +147,19 @@ python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 .venv/bin/pre-commit install
 .venv/bin/pre-commit run --all-files
 ```
+
+## 8. First recording (P1.2)
+
+```bash
+.venv/bin/python -m auditor.cli record               # refuses to run unless ADC is auditor-reader
+.venv/bin/python -m auditor.cli inventory raw/       # look at it locally; raw/ is gitignored
+set -a; source .env; set +a
+.venv/bin/python -m auditor.redact redact raw/ fixtures/
+.venv/bin/python -m auditor.cli inventory fixtures/  # same counts, no real identifiers
+git add fixtures/ && git commit -m "P1.2: first recorded inventory (redacted)"
+```
+
+Read the `fixtures/` diff before committing. The pre-commit hook re-checks it.
 
 ## Undo (if you ever want the project gone)
 
