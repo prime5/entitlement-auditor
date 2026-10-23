@@ -24,3 +24,8 @@ raw/
 plan.out
 plan.json
 crash.log
+
+# --- Build artifacts ---
+*.egg-info/
+build/
+dist/
