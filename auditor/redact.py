@@ -162,7 +162,14 @@ def check_dir(root: Path) -> list[Leak]:
     )
     leaks: list[Leak] = []
     for p in sorted(root.rglob("*")):
-        if p.is_file() and p.suffix in {".json", ".yaml", ".yml", ".txt"}:
+        if not p.is_file():
+            continue
+        # File names are checked like contents ("_at_" is how emails appear in names).
+        rel = str(p.relative_to(root).with_suffix("")).replace("_at_", "@")
+        leaks.extend(
+            Leak(str(p), 0, f"file name: {l.reason}") for l in find_leaks(rel, str(p), known)
+        )
+        if p.suffix in {".json", ".yaml", ".yml", ".txt"}:
             leaks.extend(find_leaks(p.read_text(), str(p), known))
     return leaks
 
@@ -181,7 +188,12 @@ def main(argv: list[str] | None = None) -> int:
         redactor = Redactor.from_env()
         files = sorted(args.src.rglob("*.json"))
         for f in files:
-            redactor.redact_json_file(f, args.dst / f.relative_to(args.src))
+            # File names carry identifiers too (sa/<email>.json), so the
+            # relative path goes through the same redaction as the contents.
+            # The extension is dropped first so ".json" isn't read as part of an email domain.
+            rel = f.relative_to(args.src)
+            stem = redactor.redact_text(str(rel.with_suffix("")).replace("_at_", "@"))
+            redactor.redact_json_file(f, args.dst / (stem.replace("@", "_at_") + rel.suffix))
         leaks = check_dir(args.dst)
         for leak in leaks:
             print(leak, file=sys.stderr)

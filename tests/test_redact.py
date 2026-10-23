@@ -124,6 +124,23 @@ def test_cli_redacts_a_directory_end_to_end(tmp_path, monkeypatch):
     assert (fixtures / "gcp" / "project_iam_policy.json").exists()
 
 
+def test_file_names_are_redacted_and_checked(tmp_path, monkeypatch):
+    """Found on the first real recording (10/22): sa/<email>.json kept the real project ID in its name."""
+    raw, fixtures = tmp_path / "raw", tmp_path / "fixtures"
+    sa_file = raw / "gcp" / "sa" / f"auditor-reader_at_{REAL_ID}.iam.gserviceaccount.com.json"
+    sa_file.parent.mkdir(parents=True)
+    sa_file.write_text(json.dumps({"email": f"auditor-reader@{REAL_ID}.iam.gserviceaccount.com"}))
+    monkeypatch.setenv("AUDITOR_REDACTION_SALT", "local-salt-0123456789abcdef")
+    monkeypatch.setenv("AUDITOR_PROJECT_IDS", REAL_ID)
+
+    # the check alone must flag a real ID in a file name...
+    assert any("file name" in l.reason for l in check_dir(raw))
+    # ...and redact must produce names that pass it
+    assert main(["redact", str(raw), str(fixtures)]) == 0
+    names = [p.name for p in fixtures.rglob("*.json")]
+    assert len(names) == 1 and REAL_ID not in names[0] and names[0].startswith("auditor-reader_at_proj-")
+
+
 @pytest.mark.parametrize("rel", ["fixtures", "tests/data"])
 def test_committed_data_is_clean(rel):
     """Same check as the pre-commit hook, so CI enforces it even if the hook is skipped."""
