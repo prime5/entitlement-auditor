@@ -3,6 +3,9 @@
     python -m auditor.cli record                 # live, read-only, as auditor-reader -> raw/
     python -m auditor.cli inventory raw/         # offline: print normalized grants + keys
     python -m auditor.cli inventory fixtures/    # same, on redacted recordings
+    python -m auditor.cli drift raw/ plan.json   # declared (terraform show -json) vs actual
+
+`drift` exits 0 when declared and actual match, 2 when they don't, so it can gate CI.
 """
 
 from __future__ import annotations
@@ -51,6 +54,29 @@ def cmd_inventory(raw: Path) -> int:
     return 0
 
 
+def cmd_drift(actual_dir: Path, plan_json: Path) -> int:
+    from auditor.declared import load_plan
+    from auditor.diff import diff
+
+    actual, _ = gcp.normalize(actual_dir)
+    declared = load_plan(plan_json)
+    drifts = diff(declared, actual)
+    # Google service agents appear on the project without anyone declaring them.
+    # Listed, but not counted as drift; P3's Rego takes over this decision.
+    counted = [d for d in drifts if d.grant.managed_by != "google"]
+
+    print(f"declared {len(declared)} grants, actual {len(actual)} grants, drift {len(counted)}")
+    for d in drifts:
+        g = d.grant
+        note = "  (google-managed, not counted)" if g.managed_by == "google" else ""
+        cond = f" if:{g.condition.title}" if g.condition else ""
+        print(f"  {d.kind:17} {g.resource.type:15} {g.role:45} {g.principal.type}:{g.principal.id}{cond}{note}")
+        if d.kind == "CONDITION_CHANGED":
+            print(f"  {'':17} declared: {d.declared.condition.title}  [{d.declared.condition.expression}]")
+            print(f"  {'':17} actual:   {d.actual.condition.title}  [{d.actual.condition.expression}]")
+    return 2 if counted else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     _load_dotenv()
     ap = argparse.ArgumentParser(prog="python -m auditor.cli")
@@ -59,8 +85,15 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--out", type=Path, default=Path("raw"))
     i = sub.add_parser("inventory")
     i.add_argument("dir", type=Path)
+    d = sub.add_parser("drift")
+    d.add_argument("actual_dir", type=Path)
+    d.add_argument("plan_json", type=Path)
     args = ap.parse_args(argv)
-    return cmd_record(args.out) if args.cmd == "record" else cmd_inventory(args.dir)
+    if args.cmd == "record":
+        return cmd_record(args.out)
+    if args.cmd == "drift":
+        return cmd_drift(args.actual_dir, args.plan_json)
+    return cmd_inventory(args.dir)
 
 
 if __name__ == "__main__":

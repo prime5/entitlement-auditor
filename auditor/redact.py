@@ -44,6 +44,14 @@ PSEUDO_NUMBER_PREFIX = "000"  # real GCP project numbers never start with 0
 
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 DOMAIN_PRINCIPAL_RE = re.compile(r"domain:([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
+# Google's numeric IDs for a service account (IAM API: uniqueId/oauth2ClientId;
+# Terraform: unique_id). Not credentials, but they tie a redacted fixture back
+# to the real account, so they're redacted like everything else (found in the
+# first real recording, 10/26).
+NUMERIC_ID_RE = re.compile(
+    r'"(uniqueId|oauth2ClientId|unique_id|oauth2_client_id)"(\s*:\s*)"(\d{15,})"'
+)
+
 # Places a project number shows up in IAM data.
 PROJECT_NUMBER_SHAPES = [
     re.compile(r"projects/(\d{6,})"),
@@ -89,6 +97,10 @@ class Redactor:
         digits = int(self._h(real, 12), 16) % 10**9
         return f"{PSEUDO_NUMBER_PREFIX}{digits:09d}"
 
+    def pseudo_numeric_id(self, real: str) -> str:
+        width = len(real) - len(PSEUDO_NUMBER_PREFIX)
+        return f"{PSEUDO_NUMBER_PREFIX}{int(self._h(real, 16), 16) % 10**width:0{width}d}"
+
     def pseudo_project_id(self, real: str) -> str:
         return f"proj-{self._h(real)}"
 
@@ -112,6 +124,9 @@ class Redactor:
             return f"user-{self._h(addr.lower())}@{SAFE_EMAIL_DOMAIN}"
 
         text = EMAIL_RE.sub(email, text)
+        text = NUMERIC_ID_RE.sub(
+            lambda m: f'"{m.group(1)}"{m.group(2)}"{self.pseudo_numeric_id(m.group(3))}"', text
+        )
         text = DOMAIN_PRINCIPAL_RE.sub(
             lambda m: f"domain:org-{self._h(m.group(1).lower())}{SAFE_DOMAIN_SUFFIX}", text
         )
@@ -145,6 +160,9 @@ def find_leaks(text: str, path: str = "<text>", known: tuple[str, ...] = ()) -> 
             for m in shape.finditer(line):
                 if not m.group(1).startswith(PSEUDO_NUMBER_PREFIX):
                     leaks.append(Leak(path, i, "project number outside pseudo range"))
+        for m in NUMERIC_ID_RE.finditer(line):
+            if not m.group(3).startswith(PSEUDO_NUMBER_PREFIX):
+                leaks.append(Leak(path, i, f"non-redacted numeric ID '{m.group(1)}'"))
         for m in DOMAIN_PRINCIPAL_RE.finditer(line):
             if not m.group(1).endswith(SAFE_DOMAIN_SUFFIX):
                 leaks.append(Leak(path, i, "non-redacted domain: principal"))

@@ -1,0 +1,120 @@
+{
+  "format_version": "1.2",
+  "planned_values": {
+    "root_module": {
+      "child_modules": [
+        {
+          "address": "module.reader_roles",
+          "resources": [
+            {
+              "address": "module.reader_roles.google_project_iam_member.r[\"roles/iam.securityReviewer\"]",
+              "mode": "managed",
+              "name": "reader_roles",
+              "type": "google_project_iam_member",
+              "values": {
+                "condition": [],
+                "member": "serviceAccount:auditor-reader@proj-a1b2c3.iam.gserviceaccount.com",
+                "project": "proj-a1b2c3",
+                "role": "roles/iam.securityReviewer"
+              }
+            },
+            {
+              "address": "module.reader_roles.google_project_iam_member.r[\"roles/policyanalyzer.activityAnalysisViewer\"]",
+              "mode": "managed",
+              "name": "reader_roles",
+              "type": "google_project_iam_member",
+              "values": {
+                "condition": [],
+                "member": "serviceAccount:auditor-reader@proj-a1b2c3.iam.gserviceaccount.com",
+                "project": "proj-a1b2c3",
+                "role": "roles/policyanalyzer.activityAnalysisViewer"
+              }
+            },
+            {
+              "address": "module.reader_roles.google_project_iam_member.r[\"roles/serviceusage.serviceUsageConsumer\"]",
+              "mode": "managed",
+              "name": "reader_roles",
+              "type": "google_project_iam_member",
+              "values": {
+                "condition": [],
+                "member": "serviceAccount:auditor-reader@proj-a1b2c3.iam.gserviceaccount.com",
+                "project": "proj-a1b2c3",
+                "role": "roles/serviceusage.serviceUsageConsumer"
+              }
+            }
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "google_project_iam_member.operator_owner",
+          "mode": "managed",
+          "name": "operator_owner",
+          "type": "google_project_iam_member",
+          "values": {
+            "condition": [],
+            "member": "user:User-1A2B3C@example.com",
+            "project": "proj-a1b2c3",
+            "role": "roles/owner"
+          }
+        },
+        {
+          "address": "google_service_account.reader",
+          "mode": "managed",
+          "name": "reader",
+          "type": "google_service_account",
+          "values": {
+            "account_id": "auditor-reader",
+            "email": "auditor-reader@proj-a1b2c3.iam.gserviceaccount.com",
+            "name": "projects/proj-a1b2c3/serviceAccounts/auditor-reader@proj-a1b2c3.iam.gserviceaccount.com",
+            "unique_id": "000111222333444555666"
+          }
+        },
+        {
+          "address": "google_service_account_iam_member.operator_impersonates_reader",
+          "mode": "managed",
+          "name": "operator_impersonates_reader",
+          "type": "google_service_account_iam_member",
+          "values": {
+            "condition": [],
+            "member": "user:user-1a2b3c@example.com",
+            "role": "roles/iam.serviceAccountTokenCreator",
+            "service_account_id": "projects/proj-a1b2c3/serviceAccounts/auditor-reader@proj-a1b2c3.iam.gserviceaccount.com"
+          }
+        },
+        {
+          "address": "google_project_iam_member.temp_viewer",
+          "mode": "managed",
+          "name": "temp_viewer",
+          "type": "google_project_iam_member",
+          "values": {
+            "condition": [
+              {
+                "description": "",
+                "expression": "request.time < timestamp(\"2026-12-01T00:00:00Z\")",
+                "title": "until-2026-11-30"
+              }
+            ],
+            "member": "user:user-1a2b3c@example.com",
+            "project": "proj-a1b2c3",
+            "role": "roles/storage.objectViewer"
+          }
+        },
+        {
+          "address": "google_project_iam_member.reader_logging",
+          "mode": "managed",
+          "name": "reader_logging",
+          "type": "google_project_iam_member",
+          "values": {
+            "condition": [],
+            "member": "serviceAccount:auditor-reader@proj-a1b2c3.iam.gserviceaccount.com",
+            "project": "proj-a1b2c3",
+            "role": "roles/logging.viewer"
+          }
+        }
+      ]
+    }
+  },
+  "terraform_version": "1.17.0",
+  "timestamp": "2026-10-26T00:00:00Z"
+}

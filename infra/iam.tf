@@ -21,7 +21,9 @@ resource "google_project_iam_member" "operator_owner" {
   role    = "roles/owner"
   member  = "user:${var.operator_email}"
 
-  # Threat model T4: never let a Terraform change remove the last owner.
+  # Threat model T4: refuses any plan that would remove the Owner binding while
+  # this block exists. Same limit as on the reader account below: deleting the
+  # block deletes the guard.
   lifecycle {
     prevent_destroy = true
   }
@@ -38,6 +40,15 @@ resource "google_service_account" "reader" {
   account_id   = "auditor-reader"
   display_name = "entitlement-auditor (read-only)"
   description  = "Discovery only. No write roles. Impersonated, never keyed."
+
+  # Refuses any plan that would destroy or REPLACE the account while this block
+  # exists, e.g. an edit to account_id, which forces a replacement. It does NOT
+  # protect against deleting this whole block: the guard goes with it. To stop
+  # managing the account without deleting it, use a `removed` block with
+  # `lifecycle { destroy = false }` instead of deleting the resource.
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 import {

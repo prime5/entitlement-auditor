@@ -124,6 +124,24 @@ def test_cli_redacts_a_directory_end_to_end(tmp_path, monkeypatch):
     assert (fixtures / "gcp" / "project_iam_policy.json").exists()
 
 
+def test_numeric_sa_ids_are_redacted_consistently(redactor):
+    """Found 10/26: the reader's uniqueId/oauth2ClientId survived redaction in service_accounts.json."""
+    real = "111794503432940811892"
+    api = json.dumps({"uniqueId": real, "oauth2ClientId": real})
+    tf = json.dumps({"unique_id": real})
+    out_api, out_tf = redactor.redact_text(api), redactor.redact_text(tf)
+    assert real not in out_api + out_tf
+    pseudo = json.loads(out_api)["uniqueId"]
+    assert pseudo.startswith("000") and len(pseudo) == len(real)
+    assert json.loads(out_api)["oauth2ClientId"] == pseudo == json.loads(out_tf)["unique_id"]
+    assert find_leaks(out_api) == [] and find_leaks(out_tf) == []
+
+
+def test_check_flags_raw_numeric_sa_id():
+    reasons = [l.reason for l in find_leaks('{"uniqueId": "111794503432940811892"}')]
+    assert reasons == ["non-redacted numeric ID 'uniqueId'"]
+
+
 def test_file_names_are_redacted_and_checked(tmp_path, monkeypatch):
     """Found on the first real recording (10/22): sa/<email>.json kept the real project ID in its name."""
     raw, fixtures = tmp_path / "raw", tmp_path / "fixtures"

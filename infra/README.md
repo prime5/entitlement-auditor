@@ -34,11 +34,32 @@ token-creator binding) plus the `auditor-reader` service account itself.
 Anything under "to add / change / destroy" means the declaration doesn't match
 reality. Stop and look; don't apply.
 
+Apply exactly the plan you reviewed, by saving it:
+
 ```bash
-terraform apply      # imports only; type "yes"
-terraform plan       # expect: No changes.
-git add .terraform.lock.hcl *.tf README.md terraform.tfvars.example
+terraform plan -out=plan.out
+terraform apply plan.out     # a saved plan needs no "yes": reviewing it was the approval
+terraform plan               # expect: No changes. Your infrastructure matches the configuration.
+git add .terraform.lock.hcl
 ```
+
+Done on the real project 10/26: 6 imported, then "No changes".
+
+## Recording declared state for the auditor
+
+The auditor reads the *plan JSON*, not the `.tf` files: variables, `for_each`
+and references are already resolved there.
+
+```bash
+cd infra
+terraform plan -out=plan.out
+mkdir -p ../raw/terraform
+terraform show -json plan.out > ../raw/terraform/plan.json    # raw/ is gitignored
+cd ..
+.venv/bin/python -m auditor.cli drift raw/ raw/terraform/plan.json
+```
+
+`drift` exits 0 when declared and actual match and 2 when they don't.
 
 `terraform.tfvars`, `.terraform/` and `*.tfstate` are gitignored: they contain
 real identifiers.
