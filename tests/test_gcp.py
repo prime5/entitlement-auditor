@@ -177,3 +177,34 @@ def test_record_then_normalize_round_trip(tmp_path):
     gcp.record(FakeSession(), P, tmp_path)
     grants, _ = gcp.normalize(tmp_path)
     assert len(grants) == 8  # project grants only; the fake returns empty SA policies
+
+
+# ----------------------------------------------------------- comparison key
+
+def _grant(member: str):
+    principal, managed_by = gcp.parse_member(member)
+    res = gcp.Resource("project", f"//cloudresourcemanager.googleapis.com/projects/{P}")
+    return gcp.Grant("gcp", principal, res, "roles/owner", None, "direct", managed_by,
+                     gcp.Evidence("test", "2026-10-26", None))
+
+
+def test_email_case_does_not_change_grant_key():
+    """Real case from 10/22: IAM returned the Owner email capitalized; Terraform declares it lowercase."""
+    from_iam = _grant("user:First.Last@example.com")
+    from_terraform = _grant("user:first.last@example.com")
+    assert from_iam.key() == from_terraform.key()
+    assert from_iam.principal.id == "First.Last@example.com"  # display keeps Google's spelling
+
+
+def test_federated_identities_stay_case_sensitive():
+    # principal:// subjects come from an external IdP; their case can be significant
+    a = _grant("principal://iam.googleapis.com/projects/1/locations/global/workloadIdentityPools/p/subject/Alice")
+    b = _grant("principal://iam.googleapis.com/projects/1/locations/global/workloadIdentityPools/p/subject/alice")
+    assert a.key() != b.key()
+
+
+def test_real_recording_normalizes():
+    """The committed, redacted recording of the real project (P1.3) keeps parsing."""
+    grants, keys = gcp.normalize(Path(__file__).resolve().parent.parent / "fixtures")
+    assert len(grants) == 5 and keys == []
+    assert {g.resource.type for g in grants} == {"project", "serviceAccount"}

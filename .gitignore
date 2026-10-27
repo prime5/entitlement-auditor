@@ -22,6 +22,9 @@ raw/
 *.tfstate.*
 *.tfplan
 plan.out
+*.tfvars
+!*.tfvars.example
+.terraform.tfstate.lock.info
 plan.json
 crash.log
 

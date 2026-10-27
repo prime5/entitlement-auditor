@@ -34,7 +34,18 @@ class UnknownPrincipal(ValueError):
 @dataclass(frozen=True)
 class Principal:
     type: PrincipalType
-    id: str  # the member string without its type prefix, e.g. an email
+    id: str  # the member string without its type prefix, e.g. an email; kept as Google returned it
+
+    # Email-shaped identities compare case-insensitively. Found on the first real
+    # recording (10/22): IAM returns `user:First.Last@gmail.com` even though the
+    # binding was created as `first.last@gmail.com`, and Terraform declares it
+    # lowercase. Comparing raw strings would report the same Owner grant as both
+    # "undeclared" and "missing". `id` keeps Google's spelling for display; only
+    # the comparison key is normalized.
+    _CASE_INSENSITIVE = frozenset({"user", "group", "serviceAccount", "domain", "deleted"})
+
+    def key_id(self) -> str:
+        return self.id.lower() if self.type in self._CASE_INSENSITIVE else self.id
 
 
 @dataclass(frozen=True)
@@ -79,7 +90,7 @@ class Grant:
             self.system,
             self.resource.name,
             self.principal.type,
-            self.principal.id,
+            self.principal.key_id(),
             self.role,
             self.condition.digest() if self.condition else "",
         )
