@@ -25,7 +25,7 @@ plan.out
 *.tfvars
 !*.tfvars.example
 .terraform.tfstate.lock.info
-plan.json
+infra/plan.json
 crash.log
 
 # --- Build artifacts ---
