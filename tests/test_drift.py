@@ -125,3 +125,26 @@ def test_real_project_matches_its_declaration():
     """Real recording vs real Terraform plan, both redacted with the same salt: no drift."""
     actual, _ = gcp.normalize(ROOT / "fixtures")
     assert diff(load_plan(REAL_PLAN), actual) == []
+
+
+# ----------------------------------------------------------- the live demo (docs/DRIFT-DEMO.md)
+
+DEMO = ROOT / "fixtures" / "demo"
+
+
+@pytest.mark.skipif(not (DEMO / "gcp").exists(), reason="record fixtures/demo (docs/DRIFT-DEMO.md)")
+def test_out_of_band_grant_is_caught_on_the_real_project():
+    """Recorded 10/28 on the real project, while roles/viewer had been added by hand with gcloud.
+
+    `terraform plan` reported "No changes" at that moment. Against the same
+    declaration, the auditor must report exactly that one grant, and nothing else.
+    """
+    actual, _ = gcp.normalize(DEMO)
+    drifts = diff(load_plan(REAL_PLAN), actual)
+    assert len(drifts) == 1
+    d = drifts[0]
+    assert d.kind == "UNDECLARED" and d.declared is None
+    assert d.grant.role == "roles/viewer"
+    assert d.grant.principal.type == "serviceAccount"
+    assert d.grant.principal.id.startswith("auditor-reader@")
+    assert d.grant.resource.type == "project"

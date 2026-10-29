@@ -47,6 +47,13 @@ Expect: **`No changes. Your infrastructure matches the configuration.`**
 ```
 Expect: `drift 1`, a line `UNDECLARED  project  roles/viewer  serviceAccount:auditor-reader@…`, `exit=2`.
 
+Keep the evidence before reverting: record the drifted state into its own
+folder (still inside gitignored `raw/`), to redact into a committed fixture:
+
+```bash
+.venv/bin/python -m auditor.cli record --out raw/demo
+```
+
 ## 5. Revert, and confirm clean
 
 ```bash
@@ -59,3 +66,25 @@ gcloud projects remove-iam-policy-binding "$AUDITOR_PROJECT_IDS" \
 Expect: `drift 0`, `exit=0`.
 
 In P4 the auditor itself proposes step 5, and you approve it.
+
+## 6. Commit the evidence
+
+```bash
+set -a; source .env; set +a
+.venv/bin/python -m auditor.redact redact raw/demo fixtures/demo
+.venv/bin/python -m pytest -q    # test_out_of_band_grant_is_caught_on_the_real_project now runs
+```
+
+## Run on the real project: 10/28/2026
+
+| Step | Result |
+|---|---|
+| 1. Baseline | `declared 5, actual 5, drift 0`, exit 0 |
+| 2. `roles/viewer` added to the reader with gcloud, as the Owner | `Updated IAM policy` |
+| 3. `terraform plan` | **`No changes. Your infrastructure matches the configuration.`** |
+| 4. `auditor.cli drift` | **`drift 1: UNDECLARED project roles/viewer serviceAccount:auditor-reader@…`**, exit 2 |
+| 5. Reverted with gcloud | `declared 5, actual 5, drift 0`, exit 0 |
+
+The step-4 recording is committed, redacted, in `fixtures/demo/`, and
+`tests/test_drift.py::test_out_of_band_grant_is_caught_on_the_real_project`
+re-checks it on every test run.
