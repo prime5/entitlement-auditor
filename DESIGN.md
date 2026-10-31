@@ -468,7 +468,13 @@ the two additions slot in where they depend on what came before.*
   traffic plus a generated corpus through both before switching." Plus the
   actual divergence counts and what each one turned out to be.
 
-### P7 — RFC 8693 token exchange and delegation policy (≈3 sessions)
+### P7 — RFC 8693 token exchange and delegation policy (≈3–4 sessions)
+
+*Reordered 10/31: P7 runs next, before P3–P6. It's the most relevant step for
+identity roles and depends on none of them. It protects a small read-only
+`/findings` API instead of the P5 approval API, which arrives later.
+Detailed design: [`docs/P7-TOKEN-EXCHANGE.md`](docs/P7-TOKEN-EXCHANGE.md).*
+
 - **Done when:** D4 is implemented. `/oauth/token` and JWKS; an agent registry
   with per-agent scope ceilings; all six rules tested, including refusals;
   delegation rules in OPA (agents never approve); the weekly scan worker runs
