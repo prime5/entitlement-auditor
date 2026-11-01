@@ -5,6 +5,9 @@
     python -m auditor.cli inventory fixtures/    # same, on redacted recordings
     python -m auditor.cli drift raw/ plan.json   # declared (terraform show -json) vs actual
 
+    gcloud auth print-identity-token | python -m auditor.cli subject-token
+                                                 # validate a real Google ID token (P7.2)
+
 `drift` exits 0 when declared and actual match, 2 when they don't, so it can gate CI.
 """
 
@@ -77,6 +80,39 @@ def cmd_drift(actual_dir: Path, plan_json: Path) -> int:
     return 2 if counted else 0
 
 
+def cmd_subject_token() -> int:
+    """Read an ID token on stdin and run it through the real validator, against
+    Google's live JWKS. Prints the unverified header and non-identifying claims,
+    then the verdict. Never prints the token or its email."""
+    import sys
+    from dataclasses import replace
+
+    from auditor.sts.subject import (GOOGLE, JwksCache, SubjectTokenError,
+                                     SubjectValidator, describe_unverified, dumps,
+                                     http_fetcher)
+
+    token = sys.stdin.read().strip()
+    operator = os.environ.get("AUDITOR_OPERATOR_EMAIL") or os.environ.get("AUDITOR_REDACT_EXTRA", "")
+    google = GOOGLE
+    if os.environ.get("AUDITOR_SUBJECT_AUDIENCES"):
+        auds = frozenset(a.strip() for a in os.environ["AUDITOR_SUBJECT_AUDIENCES"].split(",") if a.strip())
+        google = replace(GOOGLE, audiences=auds)
+
+    try:
+        print(dumps(describe_unverified(token)))
+    except Exception:
+        print("not a JWT")
+        return 1
+    v = SubjectValidator(issuers=(google,), operator_email=operator, keys=JwksCache(fetch=http_fetcher))
+    try:
+        s = v.validate(token)
+    except SubjectTokenError as e:
+        print(f"REJECTED: {e.reason}")
+        return 1
+    print(f"ACCEPTED: issuer={s.issuer} operator=yes expires_at={s.expires_at} token_ref={s.token_ref}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     _load_dotenv()
     ap = argparse.ArgumentParser(prog="python -m auditor.cli")
@@ -88,7 +124,10 @@ def main(argv: list[str] | None = None) -> int:
     d = sub.add_parser("drift")
     d.add_argument("actual_dir", type=Path)
     d.add_argument("plan_json", type=Path)
+    sub.add_parser("subject-token")
     args = ap.parse_args(argv)
+    if args.cmd == "subject-token":
+        return cmd_subject_token()
     if args.cmd == "record":
         return cmd_record(args.out)
     if args.cmd == "drift":

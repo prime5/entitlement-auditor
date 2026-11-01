@@ -215,13 +215,17 @@ far more surface than one endpoint needs. FastAPI for the endpoint and API;
 | Step | Deliverable | Honest claim after it |
 |---|---|---|
 | P7.1 | This document | none: design only |
-| P7.2 | `auditor/sts/subject.py`: pluggable issuer validator, Google configured; §4 tests | "I validate Google ID tokens myself: JWKS with rotation, pinned algorithms, issuer, audience and expiry checks, tested against algorithm-confusion attacks." |
+| P7.2 ✅ | `auditor/sts/subject.py`: pluggable issuer validator, Google configured; §4 tests; `cli subject-token` for a live check | "I validate Google ID tokens myself: JWKS with rotation, pinned algorithms, issuer, audience and expiry checks, tested against algorithm-confusion attacks." |
 | P7.3 | `/oauth/token`, actor assertions, agent registry, six rules, ES256 signing, JWKS endpoint; §5–§7 tests | "I implemented an RFC 8693 token exchange: narrowing only, capped lifetime, no chaining, audited." |
 | P7.4 | `/findings` + approve stub, two-lock approval rule, live run with my real Google token | "Agents read my findings through delegated tokens carrying `sub` and `act`; policy makes it impossible for a delegated token to approve a change." |
 
-## 13. Open questions for me
+## 13. Decisions (answered 10/31)
 
-1. **D-P7a:** accept gcloud's client ID as the subject token audience for now
-   (my recommendation), knowing the confused-deputy caveat?
-2. **Where the STS runs:** only on my Mac for P7 (my recommendation: no
-   deployment cost, and Cloud Run can follow later), or deployed now?
+1. **D-P7a: accepted.** The subject token's audience is gcloud's client ID for
+   now; the confused-deputy caveat stays documented; Keycloak (P8) replaces it.
+2. **Runs locally for P7.** Deployment is a separate step, **P7.5**, only if it
+   stays free: Cloud Run's free tier should cover this usage, but it needs a
+   billing account on the project. So: budget alert first (alerts notify, they
+   don't cap), `max-instances=1`, a dedicated runtime service account. Enabling
+   Cloud Run will make Google create the default compute SA with Editor: the
+   auditor should report it as UNDECLARED.
